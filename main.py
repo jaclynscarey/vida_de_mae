@@ -187,54 +187,52 @@ def draw_button(surface, rect, label, hovered=False, small=False):
     surface.blit(text, text.get_rect(center=rect.center))
 
 
-def build_name_keyboard_layout():
-    """On-screen keys for phones and tablets (works on desktop too)."""
-    keys = []
-    rows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"]
-    key_w, key_h = 34, 36
-    gap = 3
-    base_y = HEIGHT - 200
-    for i, row in enumerate(rows):
-        row_w = len(row) * (key_w + gap) - gap
-        x0 = (WIDTH - row_w) // 2
-        for j, letter in enumerate(row):
-            r = pygame.Rect(x0 + j * (key_w + gap), base_y + i * (key_h + gap), key_w, key_h)
-            keys.append((r, letter))
-    i = len(rows)
-    space_w = 220
-    back_w = 72
-    row_total = space_w + gap + back_w
-    x0 = (WIDTH - row_total) // 2
-    y = base_y + i * (key_h + gap)
-    keys.append((pygame.Rect(x0, y, space_w, key_h), " "))
-    keys.append((pygame.Rect(x0 + space_w + gap, y, back_w, key_h), "\x08"))
-    return keys
+def _web_native_name_prompt(current_name):
+    try:
+        import platform as plat_module
+
+        win = getattr(plat_module, "window", None)
+        if win is None:
+            return None
+        raw = win.prompt("What's your name?", current_name or "Player")
+        if raw is None:
+            return None
+        s = str(raw).strip()
+        return s[:20] if s else ""
+    except Exception:
+        return None
 
 
 async def get_player_name():
-    """Name entry: physical keyboard on desktop; on-screen keys + optional browser prompt on web."""
+    """Desktop: type with keyboard. Web/mobile: browser prompt = native keyboard."""
     name = ""
-    name_keyboard = build_name_keyboard_layout()
-    prompt = font.render("What's your name?", True, (220, 220, 240))
-    hint = small_font.render(
-        "Use your keyboard or tap the keys below, then Start",
-        True,
-        (160, 160, 180),
-    )
+    title = font.render("What's your name?", True, (220, 220, 240))
     start_rect = pygame.Rect(0, 0, 180, 44)
-    start_rect.center = (WIDTH // 2, HEIGHT // 2 + 58)
-    web_rect = pygame.Rect(0, 0, 240, 38)
-    web_rect.center = (WIDTH // 2, start_rect.centery - 50)
+    start_rect.center = (WIDTH // 2, HEIGHT // 2 + 88)
+    enter_rect = pygame.Rect(0, 0, 260, 44)
+    enter_rect.center = (WIDTH // 2, HEIGHT // 2 + 28)
+
+    if IS_WEB:
+        hint = small_font.render(
+            "Tap Enter name (your keyboard opens), then Start",
+            True,
+            (160, 160, 180),
+        )
+    else:
+        hint = small_font.render(
+            "Type your name, press Enter, or tap Start",
+            True,
+            (160, 160, 180),
+        )
 
     while True:
         start_hovered = False
-        web_hovered = False
-        key_hovered = None
+        enter_hovered = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 return "Player"
-            if event.type == pygame.KEYDOWN:
+            if not IS_WEB and event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
                     return name.strip() or "Player"
                 if event.key == pygame.K_BACKSPACE:
@@ -245,62 +243,34 @@ async def get_player_name():
                 pos = event_pos(event)
                 if start_rect.collidepoint(pos):
                     return name.strip() or "Player"
-                if IS_WEB and web_rect.collidepoint(pos):
-                    try:
-                        import platform as plat_module
-
-                        if getattr(plat_module, "window", None) is not None:
-                            raw = plat_module.window.prompt(
-                                "What's your name?", name or "Player"
-                            )
-                            if raw is not None:
-                                s = str(raw).strip()
-                                if s:
-                                    name = s[:20]
-                    except Exception:
-                        pass
-                    continue
-                for rect, ch in name_keyboard:
-                    if rect.collidepoint(pos):
-                        if ch == "\x08":
-                            name = name[:-1]
-                        elif len(name) < 20:
-                            name += " " if ch == " " else ch.lower()
-                        break
+                if IS_WEB and enter_rect.collidepoint(pos):
+                    got = _web_native_name_prompt(name)
+                    if got is not None:
+                        name = got
             elif event.type == pygame.MOUSEMOTION:
                 mp = pygame.Vector2(event.pos)
                 if start_rect.collidepoint(mp):
                     start_hovered = True
-                if IS_WEB and web_rect.collidepoint(mp):
-                    web_hovered = True
-                for rect, _ in name_keyboard:
-                    if rect.collidepoint(mp):
-                        key_hovered = rect
-                        break
+                if IS_WEB and enter_rect.collidepoint(mp):
+                    enter_hovered = True
 
         screen.blit(background, (0, 0))
-        screen.blit(prompt, (WIDTH // 2 - prompt.get_width() // 2, HEIGHT // 2 - 120))
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 2 - 120))
         screen.blit(hint, (WIDTH // 2 - hint.get_width() // 2, HEIGHT // 2 - 72))
 
-        name_surface = font.render(name + "|", True, (100, 200, 255))
+        if IS_WEB:
+            preview = name if name else "(tap Enter name below)"
+            name_surface = font.render(preview, True, (100, 200, 255))
+        else:
+            name_surface = font.render(name + "|", True, (100, 200, 255))
         screen.blit(
             name_surface,
             (WIDTH // 2 - name_surface.get_width() // 2, HEIGHT // 2 - 32),
         )
 
         if IS_WEB:
-            draw_button(
-                screen,
-                web_rect,
-                "Native keyboard…",
-                web_hovered,
-                small=True,
-            )
+            draw_button(screen, enter_rect, "Enter name", enter_hovered)
         draw_button(screen, start_rect, "Start", start_hovered)
-
-        for rect, ch in name_keyboard:
-            lbl = "Space" if ch == " " else ("Del" if ch == "\x08" else ch)
-            draw_button(screen, rect, lbl, key_hovered == rect, small=True)
 
         pygame.display.flip()
         clock.tick(60)
