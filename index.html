@@ -39,12 +39,12 @@ async def custom_site():
     # unpack filesystem from compressed archive into work dir
     if platform.window.location.host.find('.itch.zone')>0:
         import zipfile
-        async with platform.fopen("testing.apk?v=1778843166", "rb") as archive:
+        async with platform.fopen("testing.apk?v=1778844222", "rb") as archive:
             with zipfile.ZipFile(archive) as zip_ref:
                 zip_ref.extractall(appdir.as_posix())
     else:
         import tarfile
-        async with platform.fopen("testing.tar.gz?v=1778843166", "rb") as archive:
+        async with platform.fopen("testing.tar.gz?v=1778844222", "rb") as archive:
             tar = tarfile.open(fileobj=archive, mode="r:gz")
             tar.extractall(path=appdir.as_posix(), filter='tar')
             tar.close()
@@ -284,7 +284,7 @@ function show_infobox() {
 */
     </script>
 
-    <script src="https://pygame-web.github.io/cdn/0.9.3//browserfs.min.js"></script>
+    <script src="https://pygame-web.github.io/cdn/0.9.3/browserfs.min.js"></script>
 
 </head>
 
