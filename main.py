@@ -30,7 +30,7 @@ background = pygame.transform.scale(
     (WIDTH, HEIGHT),
 )
 HUD_POS = (10, 10)
-HUD_SIZE = (210, 150)
+HUD_SIZE = (210, 120)
 hud_panel = pygame.Surface(HUD_SIZE, pygame.SRCALPHA)
 hud_panel.fill((20, 20, 30, 160))
 HUD_EXCLUSION = pygame.Rect(HUD_POS[0], HUD_POS[1], *HUD_SIZE).inflate(TOY_SIZE, TOY_SIZE)
@@ -124,7 +124,8 @@ class VirtualJoystick:
         pygame.draw.circle(surface, (70, 150, 210), self.knob_pos, self.knob_radius, 2)
 
 
-joystick = VirtualJoystick((100, HEIGHT - 100))
+JOYSTICK_MARGIN = 100
+joystick = VirtualJoystick((WIDTH - JOYSTICK_MARGIN, HEIGHT - JOYSTICK_MARGIN))
 
 
 def event_pos(event):
@@ -178,103 +179,12 @@ def save_best_time(seconds):
         pass
 
 
-def draw_button(surface, rect, label, hovered=False, small=False):
+def draw_button(surface, rect, label, hovered=False):
     color = (90, 160, 220) if hovered else (70, 130, 200)
     pygame.draw.rect(surface, color, rect, border_radius=8)
     pygame.draw.rect(surface, (120, 180, 240), rect, 2, border_radius=8)
-    f = small_font if small else font
-    text = f.render(label, True, (255, 255, 255))
+    text = font.render(label, True, (255, 255, 255))
     surface.blit(text, text.get_rect(center=rect.center))
-
-
-def _web_native_name_prompt(current_name):
-    try:
-        import platform as plat_module
-
-        win = getattr(plat_module, "window", None)
-        if win is None:
-            return None
-        raw = win.prompt("What's your name?", current_name or "Player")
-        if raw is None:
-            return None
-        s = str(raw).strip()
-        return s[:20] if s else ""
-    except Exception:
-        return None
-
-
-async def get_player_name():
-    """Desktop: type with keyboard. Web/mobile: browser prompt = native keyboard."""
-    name = ""
-    title = font.render("What's your name?", True, (220, 220, 240))
-    start_rect = pygame.Rect(0, 0, 180, 44)
-    start_rect.center = (WIDTH // 2, HEIGHT // 2 + 88)
-    enter_rect = pygame.Rect(0, 0, 260, 44)
-    enter_rect.center = (WIDTH // 2, HEIGHT // 2 + 28)
-
-    if IS_WEB:
-        hint = small_font.render(
-            "Tap Enter name (your keyboard opens), then Start",
-            True,
-            (160, 160, 180),
-        )
-    else:
-        hint = small_font.render(
-            "Type your name, press Enter, or tap Start",
-            True,
-            (160, 160, 180),
-        )
-
-    while True:
-        start_hovered = False
-        enter_hovered = False
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                return "Player"
-            if not IS_WEB and event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_RETURN:
-                    return name.strip() or "Player"
-                if event.key == pygame.K_BACKSPACE:
-                    name = name[:-1]
-                elif event.unicode and event.unicode.isprintable() and len(name) < 20:
-                    name += event.unicode
-            elif event.type in (pygame.MOUSEBUTTONDOWN, pygame.FINGERDOWN):
-                pos = event_pos(event)
-                if start_rect.collidepoint(pos):
-                    return name.strip() or "Player"
-                if IS_WEB and enter_rect.collidepoint(pos):
-                    got = _web_native_name_prompt(name)
-                    if got is not None:
-                        name = got
-            elif event.type == pygame.MOUSEMOTION:
-                mp = pygame.Vector2(event.pos)
-                if start_rect.collidepoint(mp):
-                    start_hovered = True
-                if IS_WEB and enter_rect.collidepoint(mp):
-                    enter_hovered = True
-
-        screen.blit(background, (0, 0))
-        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 2 - 120))
-        screen.blit(hint, (WIDTH // 2 - hint.get_width() // 2, HEIGHT // 2 - 72))
-
-        if IS_WEB:
-            preview = name if name else "(tap Enter name below)"
-            name_surface = font.render(preview, True, (100, 200, 255))
-        else:
-            name_surface = font.render(name + "|", True, (100, 200, 255))
-        screen.blit(
-            name_surface,
-            (WIDTH // 2 - name_surface.get_width() // 2, HEIGHT // 2 - 32),
-        )
-
-        if IS_WEB:
-            draw_button(screen, enter_rect, "Enter name", enter_hovered)
-        draw_button(screen, start_rect, "Start", start_hovered)
-
-        pygame.display.flip()
-        clock.tick(60)
-        await asyncio.sleep(0)
 
 
 def spawn_toys():
@@ -296,20 +206,17 @@ def spawn_toys():
     return toys
 
 
-def draw_hud(player_name, score, elapsed, best_time):
+def draw_hud(score, elapsed, best_time):
     screen.blit(hud_panel, HUD_POS)
-    greeting = small_font.render(f"Hi, {player_name}!", True, (220, 220, 240))
-    screen.blit(greeting, (20, 20))
-
     score_text = small_font.render(f"Score: {score}/{TOY_COUNT}", True, (220, 220, 240))
-    screen.blit(score_text, (20, 55))
+    screen.blit(score_text, (20, 20))
 
     time_text = small_font.render(f"Time: {format_time(elapsed)}", True, (220, 220, 240))
-    screen.blit(time_text, (20, 90))
+    screen.blit(time_text, (20, 55))
 
     if best_time is not None:
         best_text = small_font.render(f"Best: {format_time(best_time)}", True, (255, 210, 80))
-        screen.blit(best_text, (20, 125))
+        screen.blit(best_text, (20, 90))
 
 
 def draw_win_screen(win_msg, color, restart_rect, restart_hovered):
@@ -330,8 +237,6 @@ def draw_win_screen(win_msg, color, restart_rect, restart_hovered):
 
 
 async def main():
-    player_name = await get_player_name()
-    pygame.display.set_caption(f"Vida de Mae — {player_name}")
     best_time = load_best_time()
     restart_rect = pygame.Rect(0, 0, 180, 44)
 
@@ -392,7 +297,7 @@ async def main():
                 screen.blit(toy["image"], toy["rect"])
 
             screen.blit(player_sprite, player)
-            draw_hud(player_name, score, elapsed, best_time)
+            draw_hud(score, elapsed, best_time)
             joystick.draw(screen)
 
             if finished:
