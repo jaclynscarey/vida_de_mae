@@ -12,13 +12,13 @@ def main():
     if not INDEX.is_file():
         print("Run from project root after: pygbag --build .", file=sys.stderr)
         sys.exit(1)
-    v = str(int(time.time()))
     text = INDEX.read_text(encoding="utf-8")
-    # fopen("testing.tar.gz" — must match template exactly
-    new = text.replace('"testing.tar.gz"', f'"testing.tar.gz?v={v}"')
+    new = text.replace("/cdn/0.9.3//browserfs", "/cdn/0.9.3/browserfs")
+    v = str(int(time.time()))
+    new = new.replace('"testing.tar.gz"', f'"testing.tar.gz?v={v}"')
     new = new.replace('"testing.apk"', f'"testing.apk?v={v}"')
     if new == text:
-        print("No archive URLs patched — template may have changed.", file=sys.stderr)
+        print("No changes applied to index.html (already patched?)", file=sys.stderr)
         sys.exit(1)
     INDEX.write_text(new, encoding="utf-8")
     print(f"Patched {INDEX.name} cache bust v={v}")

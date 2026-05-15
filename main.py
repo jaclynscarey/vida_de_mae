@@ -9,6 +9,10 @@ IS_WEB = sys.platform == "emscripten"
 
 # --- Setup (runs once) ---
 pygame.init()
+try:
+    pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=1024)
+except pygame.error:
+    pass
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Vida de Mae")
@@ -20,6 +24,7 @@ BEST_TIME_FILE = Path(__file__).with_name("best_time.txt")
 BACKGROUND_PATH = Path(__file__).parent / "images" / "background-top-view.png"
 TOYS_DIR = Path(__file__).parent / "images" / "toys"
 PLAYER_PATH = Path(__file__).parent / "images" / "player" / "jacky.png"
+SOUNDS_DIR = Path(__file__).parent / "sounds"
 TOY_COUNT = 20
 TOY_SIZE = 56
 PLAYER_HEIGHT = 96
@@ -51,6 +56,25 @@ toy_images = load_toy_images()
 _player_raw = pygame.image.load(PLAYER_PATH).convert_alpha()
 _player_w = int(_player_raw.get_width() * PLAYER_HEIGHT / _player_raw.get_height())
 player_sprite = pygame.transform.smoothscale(_player_raw, (_player_w, PLAYER_HEIGHT))
+
+
+def load_coin_sound():
+    """Prefer coin.ogg (required for Pygbag); fall back to coin.mp3 on desktop."""
+    ogg = SOUNDS_DIR / "coin.ogg"
+    mp3 = SOUNDS_DIR / "coin.mp3"
+    for path in (ogg, mp3):
+        if not path.is_file():
+            continue
+        if IS_WEB and path.suffix.lower() == ".mp3":
+            continue
+        try:
+            return pygame.mixer.Sound(path)
+        except pygame.error:
+            continue
+    return None
+
+
+coin_sound = load_coin_sound()
 
 
 class VirtualJoystick:
@@ -280,6 +304,8 @@ async def main():
                 if toy["rect"].colliderect(player):
                     toys.remove(toy)
                     score += 1
+                    if coin_sound is not None:
+                        coin_sound.play()
 
             if not toys and not finished:
                 finish_time = (pygame.time.get_ticks() - start_ticks) / 1000.0
